@@ -1,0 +1,2 @@
+# Palword-playercount-bot
+ 
