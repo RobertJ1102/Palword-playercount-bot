@@ -5,8 +5,9 @@ import datetime
 
 # Discord Bot Token and Channel ID
 TOKEN = 'MTIwMjYwMTU5MTg0NTI5MDAwNA.GR7SN5.aHLYGj8tDB4jD8uFVahRGOxslZIsQsx4GgJnn8'
-CHANNEL_ID = 1202585306419830864  # Replace with your channel ID
-
+STATUS_CHANNEL_ID = 1202585306419830864
+LOG_CHANNEL_ID = 1202673591322284052
+ 
 # RCON Server Configurations
 SERVERS = [
     {"address": "localhost:25575", "password": "ojii0hoajkos"},
@@ -19,6 +20,7 @@ RCON_EXE_PATH = "C:\\Discord Bots\\Palword-playercount-bot\\rcon\\rcon.exe"
 
 # Store message IDs to edit later
 message_ids = {}
+current_players = {server['address']: set() for server in SERVERS}
 
 # Discord Client Setup with Intents
 intents = discord.Intents.default()
@@ -48,9 +50,9 @@ def fetch_rcon_data(server, command):
 @tasks.loop(minutes=1)
 async def update_status():
     total_players = 0
-    channel = client.get_channel(CHANNEL_ID)
+    channel = client.get_channel(STATUS_CHANNEL_ID)
     if channel is None:
-        print(f"Channel with ID {CHANNEL_ID} not found.")
+        print(f"Channel with ID {STATUS_CHANNEL_ID} not found.")
         return
 
     for server in SERVERS:
@@ -80,5 +82,35 @@ async def update_status():
     # Update Discord Bot Status with Total Players
     game = discord.Game(f"{total_players} Online Players")
     await client.change_presence(status=discord.Status.online, activity=game)
+
+@tasks.loop(seconds=10)
+async def track_joins_and_leaves():
+    log_channel = client.get_channel(LOG_CHANNEL_ID)
+    if log_channel is None:
+        print(f"Log channel with ID {LOG_CHANNEL_ID} not found.")
+        return
+
+    for server in SERVERS:
+        # Fetch only the player list for join/leave tracking
+        player_list = fetch_rcon_data(server, "showplayers")
+        players = [player.split(',')[0] for player in player_list.split('\n')[1:] if player]  # Extracting player names
+        new_player_set = set(players)
+        old_player_set = current_players[server['address']]
+
+        # Determine players who joined since the last update
+        joined_players = new_player_set - old_player_set
+        # Determine players who left since the last update
+        left_players = old_player_set - new_player_set
+
+        # Log join messages
+        for player in joined_players:
+            await log_channel.send(f"🟢 {player} has joined {server['address']}.")
+
+        # Log leave messages
+        for player in left_players:
+            await log_channel.send(f"🔴 {player} has left {server['address']}.")
+
+        # Update the stored player list to the new list
+        current_players[server['address']] = new_player_set
 
 client.run(TOKEN)
