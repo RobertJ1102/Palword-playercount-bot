@@ -3,8 +3,7 @@ from aiorcon import RCON
 
 # RCON Server Configurations
 SERVERS = [
-    {"ip": "server_1_ip", "port": 25575, "password": "server_1_password"},
-    {"ip": "server_2_ip", "port": 25576, "password": "server_2_password"},
+    {"ip": "localhost", "port": 25575, "password": "ojii0hoajkos"},
     # Add more servers as needed
 ]
 
