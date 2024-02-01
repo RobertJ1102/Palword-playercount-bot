@@ -1,10 +1,9 @@
 import discord
 import subprocess
 from discord.ext import tasks
-import datetime
 
 # Discord Bot Token and Channel ID
-TOKEN = 'MTIwMjYwMTU5MTg0NTI5MDAwNA.GR7SN5.aHLYGj8tDB4jD8uFVahRGOxslZIsQsx4GgJnn8'
+TOKEN = 'YOUR_DISCORD_BOT_TOKEN'
 CHANNEL_ID = 1202585306419830864  # Replace with your channel ID
 
 # RCON Server Configurations
@@ -55,18 +54,12 @@ async def update_status():
 
     for server in SERVERS:
         server_info = fetch_rcon_data(server, "info")
-        
-        # Trim the server info to extract the version and server name
-        version = server_info[server_info.find("[v"):server_info.find("]") + 1]
-        server_name = server_info.replace('Welcome to Pal Server', '').strip()
-        
         player_list = fetch_rcon_data(server, "showplayers")
         players = [player.split(',')[0] for player in player_list.split('\n')[1:] if player]  # Extracting player names
         total_players += len(players)
 
-        embed = discord.Embed(title=server_name, description="**Players:**\n" + '\n'.join(players) if players else "No players currently online.")
-        embed.timestamp = datetime.datetime.now()
-        embed.set_footer(text=f"{version} • Last updated")
+        embed = discord.Embed(title=server_info, description="Players:\n" + '\n'.join(players))
+        embed.set_footer(text="Last updated")
 
         if server['address'] in message_ids:
             try:

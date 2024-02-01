@@ -12,7 +12,7 @@ RCON_EXE_PATH = "C:\\Discord Bots\\Palword-playercount-bot\\rcon\\rcon.exe"
 def test_rcon(server):
     try:
         # Constructing the command
-        command = [RCON_EXE_PATH, "-a", server['address'], "-p", server['password'], "showplayers"]
+        command = [RCON_EXE_PATH, "-a", server['address'], "-p", server['password'], "info"]
         
         # Running the command
         result = subprocess.run(command, capture_output=True, text=True)
