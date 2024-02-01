@@ -101,26 +101,32 @@ async def track_joins_and_leaves():
         return
 
     for server in SERVERS:
-        # Fetch only the player list for join/leave tracking
         player_list = fetch_rcon_data(server, "showplayers")
-        players = [player.split(',')[0] for player in player_list.split('\n')[1:] if player]  # Extracting player names
-        new_player_set = set(players)
-        old_player_set = current_players[server['address']]
+        # Parse the player list into a dict mapping names to a dict of the uuid and steamid
+        new_player_info = {player.split(',')[0]: {'uuid': player.split(',')[1], 'steamid': player.split(',')[2]}
+                           for player in player_list.split('\n')[1:] if player}
+        new_player_names = set(new_player_info.keys())
+        old_player_info = current_players[server['address']]
+        old_player_names = set(old_player_info.keys())
 
         # Determine players who joined since the last update
-        joined_players = new_player_set - old_player_set
+        joined_players = new_player_names - old_player_names
         # Determine players who left since the last update
-        left_players = old_player_set - new_player_set
+        left_players = old_player_names - new_player_names
 
-        # Log join messages
+        # Log join messages with name, steamid, and uuid
         for player in joined_players:
-            await log_channel.send(f"🟢 {player} has joined {server['address']}.")
+            await log_channel.send(f"🟢 {player} has joined {server['address']}. "
+                                   f"SteamID: {new_player_info[player]['steamid']}, "
+                                   f"UUID: {new_player_info[player]['uuid']}")
 
-        # Log leave messages
+        # Log leave messages with name, steamid, and uuid
         for player in left_players:
-            await log_channel.send(f"🔴 {player} has left {server['address']}.")
+            await log_channel.send(f"🔴 {player} has left {server['address']}. "
+                                   f"SteamID: {old_player_info[player]['steamid']}, "
+                                   f"UUID: {old_player_info[player]['uuid']}")
 
         # Update the stored player list to the new list
-        current_players[server['address']] = new_player_set
+        current_players[server['address']] = new_player_info
 
 client.run(TOKEN)
