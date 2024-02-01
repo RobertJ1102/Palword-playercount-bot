@@ -26,10 +26,20 @@ current_players = {server['address']: set() for server in SERVERS}
 intents = discord.Intents.default()
 client = discord.Client(intents=intents)
 
+def parse_player_info(player_list):
+    players_info = {}
+    lines = player_list.split('\n')[1:]  # Skip the header line
+    for line in lines:
+        if line:
+            name, uuid, steamid = line.split(',')
+            players_info[name] = {'uuid': uuid, 'steamid': steamid}
+    return players_info
+
 @client.event
 async def on_ready():
     print(f'{client.user} has connected to Discord!')
     update_status.start()
+    track_joins_and_leaves.start()
 
 def fetch_rcon_data(server, command):
     try:
