@@ -20,7 +20,7 @@ RCON_EXE_PATH = "C:\\Discord Bots\\Palword-playercount-bot\\rcon\\rcon.exe"
 
 # Store message IDs to edit later
 message_ids = {}
-current_players = {server['address']: set() for server in SERVERS}
+current_players = {server['address']: {} for server in SERVERS}
 
 # Discord Client Setup with Intents
 intents = discord.Intents.default()
