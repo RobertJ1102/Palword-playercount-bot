@@ -42,26 +42,35 @@ async def on_ready():
     update_status.start()
     track_joins_and_leaves.start()
 
-async def fetch_rcon_data(server, command):
-    try:
-        # Constructing the command
-        rcon_command = [RCON_EXE_PATH, "-a", server['address'], "-p", server['password'], command]
-        
-        # Running the command asynchronously
-        process = await asyncio.create_subprocess_exec(
-            *rcon_command,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        
-        stdout, stderr = await process.communicate()
-        
-        if process.returncode == 0:
-            return stdout.decode().strip()
-        else:
-            return f"Error: {stderr.decode().strip()}"
-    except Exception as e:
-        return f"Exception: {str(e)}"
+async def fetch_rcon_data(server, command, retries=3, timeout=10):
+    attempt = 0
+    while attempt < retries:
+        try:
+            rcon_command = [RCON_EXE_PATH, "-a", server['address'], "-p", server['password'], command]
+            process = await asyncio.create_subprocess_exec(
+                *rcon_command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+
+            # Using asyncio.wait_for to apply the timeout
+            try:
+                stdout, stderr = await asyncio.wait_for(process.communicate(), timeout)
+                if process.returncode == 0:
+                    return stdout.decode().strip()
+                else:
+                    print(f"Error executing RCON command: {stderr.decode().strip()}")
+            except asyncio.TimeoutError:
+                print(f"Timeout executing RCON command on attempt {attempt + 1}")
+                # Optionally kill the process if it's still running
+                if process.returncode is None:
+                    process.kill()
+                    await process.communicate()
+
+        except Exception as e:
+            print(f"Exception executing RCON command: {str(e)}")
+        attempt += 1
+    return "Error: RCON command failed after retries"
 
 @tasks.loop(minutes=1)
 async def update_status():
