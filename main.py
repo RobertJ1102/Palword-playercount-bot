@@ -6,7 +6,7 @@ import asyncio
 import json
 
 # Discord Bot Token and Channel ID
-TOKEN = 'MTIwMjYwMTU5MTg0NTI5MDAwNA.GR7SN5.aHLYGj8tDB4jD8uFVahRGOxslZIsQsx4GgJnn8'
+TOKEN = 'MTE5NjIxODE5OTk4NTg4OTQ0Mg.GAXkdq.7gRBKOy2HQgFqnFS6oCb-4_10Z_pv1UgiuH9yk'
 STATUS_CHANNEL_ID = 1202585306419830864
 LOG_CHANNEL_ID = 1202673591322284052
  
@@ -117,41 +117,45 @@ async def fetch_rcon_data(server, command, retries=3, timeout=20):
         attempt += 1
     return "Error: RCON command failed after retries"
 
+async def update_or_send_message(channel, server_address, embed):
+    if server_address in message_ids:
+        try:
+            msg = await channel.fetch_message(message_ids[server_address])
+            await msg.edit(embed=embed)
+        except discord.NotFound:
+            # If the message was not found, send a new one
+            msg = await channel.send(embed=embed)
+            save_message_id(server_address, msg.id)
+    else:
+        # No message ID stored, send a new message
+        msg = await channel.send(embed=embed)
+        save_message_id(server_address, msg.id)
+
+
+
 @tasks.loop(minutes=1)
 async def update_status():
     total_players = 0
-    channel = client.get_channel(STATUS_CHANNEL_ID)
-    if channel is None:
+    status_channel = client.get_channel(STATUS_CHANNEL_ID)
+    if status_channel is None:
         print(f"Channel with ID {STATUS_CHANNEL_ID} not found.")
         return
 
     for server in SERVERS:
         server_info = await fetch_rcon_data(server, "info")
-        
-        # Trim the server info to extract the version and server name
         version = server_info[server_info.find("[v"):server_info.find("]") + 1]
         server_name = server_info.replace('Welcome to Pal Server', '').strip()
-        
         player_list = await fetch_rcon_data(server, "showplayers")
-        players = [player.split(',')[0] for player in player_list.split('\n')[1:] if player]  # Extracting player names
+        players = [player.split(',')[0] for player in player_list.split('\n')[1:] if player]
         total_players += len(players)
-
         embed = discord.Embed(title=server_name, description="**Players:**\n" + '\n'.join(players) if players else "No players currently online.")
-        embed.timestamp = datetime.datetime.now()
+        embed.timestamp = datetime.datetime.utcnow()
         embed.set_footer(text=f"{version} • Last updated")
+        await update_or_send_message(status_channel, server['address'], embed)
 
-        if server['address'] in message_ids:
-            try:
-                msg = await channel.fetch_message(message_ids[server['address']])
-                await msg.edit(embed=embed)
-            except discord.NotFound:
-                message_ids[server['address']] = (await channel.send(embed=embed)).id
-        else:
-            message_ids[server['address']] = (await channel.send(embed=embed)).id
-
-    # Update Discord Bot Status with Total Players
     game = discord.Game(f"{total_players} Online Players")
     await client.change_presence(status=discord.Status.online, activity=game)
+
 
 @tasks.loop(seconds=10)
 async def track_joins_and_leaves():
