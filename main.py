@@ -3,6 +3,7 @@ import subprocess
 from discord.ext import tasks
 import datetime
 import asyncio
+import json
 
 # Discord Bot Token and Channel ID
 TOKEN = 'MTIwMjYwMTU5MTg0NTI5MDAwNA.GR7SN5.aHLYGj8tDB4jD8uFVahRGOxslZIsQsx4GgJnn8'
@@ -20,12 +21,40 @@ SERVERS = [
 RCON_EXE_PATH = "C:\\Discord Bots\\Palword-playercount-bot\\rcon\\rcon.exe"
 
 # Store message IDs to edit later
-message_ids = {}
+#message_ids = {}
 current_players = {server['address']: {} for server in SERVERS}
 
 # Discord Client Setup with Intents
 intents = discord.Intents.default()
 client = discord.Client(intents=intents)
+
+message_ids_file = 'message_ids.json'
+
+def save_message_id(server_address, message_id):
+    try:
+        # Load the existing message IDs
+        with open(message_ids_file, 'r') as file:
+            message_ids = json.load(file)
+    except FileNotFoundError:
+        message_ids = {}
+
+    # Update the message ID for the server
+    message_ids[server_address] = message_id
+
+    # Save back to the file
+    with open(message_ids_file, 'w') as file:
+        json.dump(message_ids, file)
+
+
+def load_message_ids():
+    try:
+        with open(message_ids_file, 'r') as file:
+            return json.load(file)
+    except FileNotFoundError:
+        return {}  # Return an empty dict if the file does not exist
+
+message_ids = load_message_ids()
+
 
 def parse_player_info(player_list):
     players_info = {}
@@ -36,13 +65,29 @@ def parse_player_info(player_list):
             players_info[name] = {'uuid': uuid, 'steamid': steamid}
     return players_info
 
+
+async def update_or_send_message(channel, server_address, embed):
+    if server_address in message_ids:
+        try:
+            msg = await channel.fetch_message(message_ids[server_address])
+            await msg.edit(embed=embed)
+        except discord.NotFound:
+            # If the message was not found, send a new one
+            msg = await channel.send(embed=embed)
+            save_message_id(server_address, msg.id)
+    else:
+        # No message ID stored, send a new message
+        msg = await channel.send(embed=embed)
+        save_message_id(server_address, msg.id)
+
+
 @client.event
 async def on_ready():
     print(f'{client.user} has connected to Discord!')
     update_status.start()
     track_joins_and_leaves.start()
 
-async def fetch_rcon_data(server, command, retries=3, timeout=10):
+async def fetch_rcon_data(server, command, retries=3, timeout=20):
     attempt = 0
     while attempt < retries:
         try:
