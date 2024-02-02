@@ -2,6 +2,7 @@ import discord
 import subprocess
 from discord.ext import tasks
 import datetime
+import asyncio
 
 # Discord Bot Token and Channel ID
 TOKEN = 'MTIwMjYwMTU5MTg0NTI5MDAwNA.GR7SN5.aHLYGj8tDB4jD8uFVahRGOxslZIsQsx4GgJnn8'
@@ -41,19 +42,24 @@ async def on_ready():
     update_status.start()
     track_joins_and_leaves.start()
 
-def fetch_rcon_data(server, command):
+async def fetch_rcon_data(server, command):
     try:
         # Constructing the command
         rcon_command = [RCON_EXE_PATH, "-a", server['address'], "-p", server['password'], command]
         
-        # Running the command
-        result = subprocess.run(rcon_command, capture_output=True, text=True)
+        # Running the command asynchronously
+        process = await asyncio.create_subprocess_exec(
+            *rcon_command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
         
-        # Return output if successful, otherwise return error message
-        if result.returncode == 0:
-            return result.stdout.strip()
+        stdout, stderr = await process.communicate()
+        
+        if process.returncode == 0:
+            return stdout.decode().strip()
         else:
-            return f"Error: {result.stderr.strip()}"
+            return f"Error: {stderr.decode().strip()}"
     except Exception as e:
         return f"Exception: {str(e)}"
 
@@ -66,13 +72,13 @@ async def update_status():
         return
 
     for server in SERVERS:
-        server_info = fetch_rcon_data(server, "info")
+        server_info = await fetch_rcon_data(server, "info")
         
         # Trim the server info to extract the version and server name
         version = server_info[server_info.find("[v"):server_info.find("]") + 1]
         server_name = server_info.replace('Welcome to Pal Server', '').strip()
         
-        player_list = fetch_rcon_data(server, "showplayers")
+        player_list = await fetch_rcon_data(server, "showplayers")
         players = [player.split(',')[0] for player in player_list.split('\n')[1:] if player]  # Extracting player names
         total_players += len(players)
 
@@ -101,7 +107,7 @@ async def track_joins_and_leaves():
         return
 
     for server in SERVERS:
-        player_list = fetch_rcon_data(server, "showplayers")
+        player_list = await fetch_rcon_data(server, "showplayers")
         # Parse the player list into a dict mapping names to a dict of the uuid and steamid
         new_player_info = {player.split(',')[0]: {'uuid': player.split(',')[1], 'steamid': player.split(',')[2]}
                            for player in player_list.split('\n')[1:] if player}
