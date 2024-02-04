@@ -151,6 +151,7 @@ def format(address):
 
 @tasks.loop(hours=5, minutes=50)
 async def auto_restart_sequence():
+    print("Starting 6h count down sequence")
     for server in SERVERS:
         print(f"Initiating shutdown sequence for {server['address']}.")
         await fetch_rcon_data(server, "shutdown 600")  # Shutdown in 10 minutes
