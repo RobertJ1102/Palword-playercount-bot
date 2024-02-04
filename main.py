@@ -86,6 +86,7 @@ async def on_ready():
     print(f'{client.user} has connected to Discord!')
     update_status.start()
     track_joins_and_leaves.start()
+    auto_restart_sequence.start()
 
 async def fetch_rcon_data(server, command, retries=3, timeout=20):
     attempt = 0
@@ -131,7 +132,26 @@ async def update_or_send_message(channel, server_address, embed):
         msg = await channel.send(embed=embed)
         save_message_id(server_address, msg.id)
 
+def format(address):
+    # replace with server name
+    if address == "localhost:25575":
+        return "EU1"
+    elif address == "localhost:25585":
+        return "EU2"
+    elif address == "localhost:25595":
+        return "EU3"
 
+@tasks.loop(hours=5, minutes=50)
+async def auto_restart_sequence():
+    for server in SERVERS:
+        print(f"Initiating shutdown sequence for {server['address']}.")
+        await fetch_rcon_data(server, "shutdown 600")  # Shutdown in 10 minutes
+        await asyncio.sleep(300)  # Wait 5 minutes
+        await fetch_rcon_data(server, "broadcast Server_restarting_in_5_minutes.")
+        await asyncio.sleep(240)  # Wait 4 minutes
+        await fetch_rcon_data(server, "broadcast Server_restarting_in_1_minute.")
+        await asyncio.sleep(50)  # Final minute
+        await fetch_rcon_data(server, "save")
 
 @tasks.loop(minutes=1)
 async def update_status():
@@ -180,13 +200,13 @@ async def track_joins_and_leaves():
 
         # Log join messages with name, steamid, and uuid
         for player in joined_players:
-            await log_channel.send(f"🟢 {player} has joined {server['address']}. "
+            await log_channel.send(f"🟢 {player} has joined {format(server['address'])}. "
                                    f"SteamID: {new_player_info[player]['steamid']}, "
                                    f"UUID: {new_player_info[player]['uuid']}")
 
         # Log leave messages with name, steamid, and uuid
         for player in left_players:
-            await log_channel.send(f"🔴 {player} has left {server['address']}. "
+            await log_channel.send(f"🔴 {player} has left {format(server['address'])}. "
                                    f"SteamID: {old_player_info[player]['steamid']}, "
                                    f"UUID: {old_player_info[player]['uuid']}")
 
