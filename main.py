@@ -91,12 +91,19 @@ async def update_or_send_message(channel, server_address, embed):
         save_message_id(server_address, msg.id)
         print(f"Sent new message and saved ID {msg.id} for {server_address}")  # Debug print
 
+
+async def delayed_task_start():
+    print("task delayed!")
+    await asyncio.sleep(5 * 3600 + 50 * 60)  # Delay for 5 hours and 50 minutes
+    print("task starting")
+    auto_restart_sequence.start()
+
 @client.event
 async def on_ready():
     print(f'{client.user} has connected to Discord!')
     update_status.start()
     track_joins_and_leaves.start()
-    auto_restart_sequence.start()
+    client.loop.create_task(delayed_task_start())
 
 async def fetch_rcon_data(server, command, retries=3, timeout=20):
     attempt = 0
@@ -152,15 +159,19 @@ def format(address):
 @tasks.loop(hours=5, minutes=50)
 async def auto_restart_sequence():
     print("Starting 6h count down sequence")
-    for server in SERVERS:
-        print(f"Initiating shutdown sequence for {server['address']}.")
-        await fetch_rcon_data(server, "shutdown 600")  # Shutdown in 10 minutes
-        await asyncio.sleep(300)  # Wait 5 minutes
-        await fetch_rcon_data(server, "broadcast Server_restarting_in_5_minutes.")
-        await asyncio.sleep(240)  # Wait 4 minutes
-        await fetch_rcon_data(server, "broadcast Server_restarting_in_1_minute.")
-        await asyncio.sleep(50)  # Final minute
-        await fetch_rcon_data(server, "save")
+    # Initiate shutdown sequence for all servers
+    await asyncio.gather(*(fetch_rcon_data(server, "shutdown 600") for server in SERVERS))
+    print("Servers restarting in 10 minutes")
+    
+    await asyncio.sleep(300)  # Wait 5 minutes
+    await asyncio.gather(*(fetch_rcon_data(server, "broadcast Server_restarting_in_5_minutes.") for server in SERVERS))
+    
+    await asyncio.sleep(240)  # Wait 4 minutes
+    await asyncio.gather(*(fetch_rcon_data(server, "broadcast Server_restarting_in_1_minute.") for server in SERVERS))
+    
+    await asyncio.sleep(50)  # Final minute
+    await asyncio.gather(*(fetch_rcon_data(server, "save") for server in SERVERS))
+
 
 @tasks.loop(minutes=1)
 async def update_status():
