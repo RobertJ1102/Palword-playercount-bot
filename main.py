@@ -6,7 +6,7 @@ import asyncio
 import json
 
 # Discord Bot Token and Channel ID
-TOKEN = 'MTE5NjIxODE5OTk4NTg4OTQ0Mg.GAXkdq.7gRBKOy2HQgFqnFS6oCb-4_10Z_pv1UgiuH9yk'
+TOKEN = 'MTIwMjYwMTU5MTg0NTI5MDAwNA.G3mugb.i0QA2vSSJtQg3QdGjva9-koNiVKaaC6OrCJIUg'
 STATUS_CHANNEL_ID = 1202585306419830864
 LOG_CHANNEL_ID = 1202673591322284052
  
@@ -32,33 +32,42 @@ message_ids_file = 'message_ids.json'
 
 def save_message_id(server_address, message_id):
     try:
-        # Load the existing message IDs
-        with open(message_ids_file, 'r') as file:
-            message_ids = json.load(file)
+        # Try opening the file in read/write mode, creating it if it doesn't exist
+        with open(message_ids_file, 'r+') as file:
+            try:
+                message_ids = json.load(file)
+            except json.JSONDecodeError:
+                message_ids = {}  # File is empty, proceed with an empty dict
     except FileNotFoundError:
-        message_ids = {}
+        message_ids = {}  # File does not exist, proceed with an empty dict
 
     # Update the message ID for the server
     message_ids[server_address] = message_id
 
-    # Save back to the file
+    # Move back to the beginning of the file before writing
     with open(message_ids_file, 'w') as file:
         json.dump(message_ids, file)
+
 
 
 def load_message_ids():
     try:
         with open(message_ids_file, 'r') as file:
-            return json.load(file)
+            content = file.read().strip()
+            if content:
+                message_ids = json.loads(content)
+                print("Loaded message IDs:", message_ids)  # Debug print
+                return message_ids
+            else:
+                return {}
     except FileNotFoundError:
-        return {}  # Return an empty dict if the file does not exist
+        return {}
 
 message_ids = load_message_ids()
 
-
 def parse_player_info(player_list):
     players_info = {}
-    lines = player_list.split('\n')[1:]  # Skip the header line
+    lines = player_list.split('\n')[1:]
     for line in lines:
         if line:
             name, uuid, steamid = line.split(',')
@@ -67,19 +76,20 @@ def parse_player_info(player_list):
 
 
 async def update_or_send_message(channel, server_address, embed):
-    if server_address in message_ids:
+    message_id = message_ids.get(server_address)
+    if message_id:
         try:
-            msg = await channel.fetch_message(message_ids[server_address])
+            msg = await channel.fetch_message(message_id)
             await msg.edit(embed=embed)
+            print(f"Edited message {message_id} for {server_address}")  # Debug print
         except discord.NotFound:
-            # If the message was not found, send a new one
             msg = await channel.send(embed=embed)
             save_message_id(server_address, msg.id)
+            print(f"Sent new message and saved ID {msg.id} for {server_address}")  # Debug print
     else:
-        # No message ID stored, send a new message
         msg = await channel.send(embed=embed)
         save_message_id(server_address, msg.id)
-
+        print(f"Sent new message and saved ID {msg.id} for {server_address}")  # Debug print
 
 @client.event
 async def on_ready():
@@ -98,8 +108,6 @@ async def fetch_rcon_data(server, command, retries=3, timeout=20):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
-
-            # Using asyncio.wait_for to apply the timeout
             try:
                 stdout, stderr = await asyncio.wait_for(process.communicate(), timeout)
                 if process.returncode == 0:
