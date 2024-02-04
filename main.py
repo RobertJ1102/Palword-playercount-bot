@@ -105,7 +105,7 @@ async def on_ready():
     track_joins_and_leaves.start()
     client.loop.create_task(delayed_task_start())
 
-async def fetch_rcon_data(server, command, retries=3, timeout=20):
+async def fetch_rcon_data(server, command, retries=3, timeout=3):
     attempt = 0
     while attempt < retries:
         try:
@@ -158,17 +158,18 @@ def format(address):
 
 @tasks.loop(hours=5, minutes=50)
 async def auto_restart_sequence():
-    print("Starting 6h count down sequence")
+    print("Starting 6h count down sequence for all servers")
     # Initiate shutdown sequence for all servers
     await asyncio.gather(*(fetch_rcon_data(server, "shutdown 600") for server in SERVERS))
-    print("Servers restarting in 10 minutes")
+    print("All Servers restarting in 10 minutes")
     
     await asyncio.sleep(300)  # Wait 5 minutes
     await asyncio.gather(*(fetch_rcon_data(server, "broadcast Server_restarting_in_5_minutes.") for server in SERVERS))
     
+    print("waiting 4 minutes")
     await asyncio.sleep(240)  # Wait 4 minutes
     await asyncio.gather(*(fetch_rcon_data(server, "broadcast Server_restarting_in_1_minute.") for server in SERVERS))
-    
+    print("waiting last 50 seconds")
     await asyncio.sleep(50)  # Final minute
     await asyncio.gather(*(fetch_rcon_data(server, "save") for server in SERVERS))
 
