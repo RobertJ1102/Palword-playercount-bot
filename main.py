@@ -6,7 +6,7 @@ import asyncio
 import json
 
 # Discord Bot Token and Channel ID
-TOKEN = 'MTIwMjYwMTU5MTg0NTI5MDAwNA.G3mugb.i0QA2vSSJtQg3QdGjva9-koNiVKaaC6OrCJIUg' # Token no longer valid
+TOKEN = 'token' # Token no longer valid
 STATUS_CHANNEL_ID = 1202585306419830864
 LOG_CHANNEL_ID = 1202673591322284052
  
