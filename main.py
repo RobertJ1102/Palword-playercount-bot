@@ -6,15 +6,15 @@ import asyncio
 import json
 
 # Discord Bot Token and Channel ID
-TOKEN = 'MTIwMjYwMTU5MTg0NTI5MDAwNA.G3mugb.i0QA2vSSJtQg3QdGjva9-koNiVKaaC6OrCJIUg'
+TOKEN = 'MTIwMjYwMTU5MTg0NTI5MDAwNA.G3mugb.i0QA2vSSJtQg3QdGjva9-koNiVKaaC6OrCJIUg' # Token no longer valid
 STATUS_CHANNEL_ID = 1202585306419830864
 LOG_CHANNEL_ID = 1202673591322284052
  
 # RCON Server Configurations
 SERVERS = [
-    {"address": "localhost:25575", "password": "ojii0hoajkos"},
-    {"address": "localhost:25585", "password": "ojii0hoajkos"},
-    {"address": "localhost:25595", "password": "ojii0hoajkos"},
+    {"address": "localhost:25575", "password": "ojii0hoajkos"}, # Password no longer valid
+    {"address": "localhost:25585", "password": "ojii0hoajkos"}, # Password no longer valid
+    {"address": "localhost:25595", "password": "ojii0hoajkos"}, # Password no longer valid
 ]
 
 # Path to rcon.exe
@@ -44,7 +44,6 @@ def save_message_id(server_address, message_id):
     # Update the message ID for the server
     message_ids[server_address] = message_id
 
-    # Move back to the beginning of the file before writing
     with open(message_ids_file, 'w') as file:
         json.dump(message_ids, file)
 
@@ -123,7 +122,6 @@ async def fetch_rcon_data(server, command, retries=3, timeout=3):
                     print(f"Error executing RCON command: {stderr.decode().strip()}")
             except asyncio.TimeoutError:
                 print(f"Timeout executing RCON command on attempt {attempt + 1}")
-                # Optionally kill the process if it's still running
                 if process.returncode is None:
                     process.kill()
                     await process.communicate()
@@ -148,7 +146,6 @@ async def update_or_send_message(channel, server_address, embed):
         save_message_id(server_address, msg.id)
 
 def format(address):
-    # replace with server name
     if address == "localhost:25575":
         return "EU1"
     elif address == "localhost:25585":
